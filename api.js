@@ -41,7 +41,7 @@ const Polishly = {
       throw new Error('No API key set. Go to extension settings to add your Gemini key.');
     }
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`;
 
     const res = await fetch(url, {
       method: 'POST',
