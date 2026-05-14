@@ -1,44 +1,90 @@
-/* ── Polishly — Trigger Icon ── */
+/* ── Polishly — Animations ── */
+@keyframes polishly-pop-in {
+  0% { opacity: 0; transform: scale(0.5); }
+  70% { transform: scale(1.08); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes polishly-fade-up {
+  0% { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes polishly-fade-in {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.95); }
+  100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+@keyframes polishly-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes polishly-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(108, 92, 231, 0.4); }
+  50% { box-shadow: 0 0 0 6px rgba(108, 92, 231, 0); }
+}
+
+/* ── Trigger Icon ── */
 #polishly-trigger {
-  width: 28px;
-  height: 28px;
-  background: #6c5ce7;
+  width: 30px;
+  height: 30px;
+  background: linear-gradient(135deg, #7c6cf0, #5a4bd1);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   color: #fff;
-  box-shadow: 0 2px 10px rgba(108, 92, 231, 0.4);
-  transition: transform 0.15s, box-shadow 0.15s;
+  box-shadow:
+    0 2px 12px rgba(108, 92, 231, 0.4),
+    0 0 0 0 rgba(108, 92, 231, 0.3);
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s;
   user-select: none;
+  animation: polishly-pop-in 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 #polishly-trigger:hover {
-  transform: scale(1.15);
-  box-shadow: 0 4px 16px rgba(108, 92, 231, 0.6);
+  transform: scale(1.18);
+  box-shadow:
+    0 4px 20px rgba(108, 92, 231, 0.55),
+    inset 0 0 12px rgba(255, 255, 255, 0.08);
+}
+#polishly-trigger:active {
+  transform: scale(0.95);
 }
 
-/* ── Polishly — Floating Popup ── */
+/* ── Floating Popup & Result ── */
 #polishly-popup,
 #polishly-result {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background: #1a1a1a;
-  border: 1px solid #2a2a2a;
-  border-radius: 10px;
-  padding: 10px;
-  width: 260px;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
-  color: #e0e0e0;
+  background: rgba(20, 20, 24, 0.82);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 12px;
+  width: 270px;
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+  color: #e4e4e8;
   font-size: 13px;
   line-height: 1.4;
 }
 
+#polishly-popup {
+  animation: polishly-fade-up 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+#polishly-result {
+  animation: polishly-fade-in 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 .polishly-header {
-  font-weight: 600;
-  font-size: 12px;
-  color: #6c5ce7;
-  margin-bottom: 8px;
-  letter-spacing: 0.5px;
+  font-weight: 700;
+  font-size: 11px;
+  color: #a78bfa;
+  margin-bottom: 10px;
+  letter-spacing: 1.2px;
   text-transform: uppercase;
 }
 
@@ -46,48 +92,57 @@
 .polishly-btn {
   display: block;
   width: 100%;
-  padding: 7px 10px;
-  margin-bottom: 5px;
-  background: #252525;
-  border: 1px solid #333;
-  border-radius: 6px;
-  color: #ddd;
-  font-size: 12px;
+  padding: 8px 12px;
+  margin-bottom: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  color: #d4d4d8;
+  font-size: 12.5px;
   cursor: pointer;
   text-align: left;
-  transition: background 0.15s, border-color 0.15s;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .polishly-btn:hover {
-  background: #2f2f2f;
-  border-color: #6c5ce7;
+  background: rgba(108, 92, 231, 0.12);
+  border-color: rgba(108, 92, 231, 0.4);
+  color: #f0f0f4;
+  transform: translateY(-1px);
+}
+.polishly-btn:active {
+  transform: translateY(0);
 }
 
 .polishly-btn-primary {
-  background: #6c5ce7;
-  border-color: #6c5ce7;
+  background: linear-gradient(135deg, #7c6cf0, #5a4bd1);
+  border-color: transparent;
   color: #fff;
   text-align: center;
+  font-weight: 500;
 }
 .polishly-btn-primary:hover {
-  background: #5a4bd1;
+  background: linear-gradient(135deg, #8b7ef5, #6c5ce7);
+  border-color: transparent;
+  box-shadow: 0 4px 16px rgba(108, 92, 231, 0.35);
 }
 
 .polishly-btn-close {
   background: transparent;
-  border-color: #333;
-  color: #888;
+  border-color: rgba(255, 255, 255, 0.06);
+  color: #71717a;
   text-align: center;
 }
 .polishly-btn-close:hover {
-  color: #ccc;
-  border-color: #555;
+  color: #d4d4d8;
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 /* ── Tone row ── */
 .polishly-tone-row {
   display: flex;
-  gap: 5px;
-  margin-bottom: 5px;
+  gap: 6px;
+  margin-bottom: 6px;
 }
 .polishly-tone-row .polishly-btn-tone {
   flex: 1;
@@ -96,68 +151,85 @@
 }
 .polishly-select {
   flex: 1;
-  padding: 7px 6px;
-  background: #252525;
-  border: 1px solid #333;
-  border-radius: 6px;
-  color: #ddd;
-  font-size: 12px;
+  padding: 8px 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  color: #d4d4d8;
+  font-size: 12.5px;
   cursor: pointer;
   outline: none;
+  transition: border-color 0.18s;
 }
 .polishly-select:focus {
-  border-color: #6c5ce7;
+  border-color: rgba(108, 92, 231, 0.5);
 }
 
 /* ── Custom instruction row ── */
 .polishly-custom-row {
   display: flex;
-  gap: 5px;
+  gap: 6px;
 }
 .polishly-input {
   flex: 1;
-  padding: 7px 8px;
-  background: #111;
-  border: 1px solid #333;
-  border-radius: 6px;
-  color: #e0e0e0;
-  font-size: 12px;
+  padding: 8px 10px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  color: #e4e4e8;
+  font-size: 12.5px;
   outline: none;
+  transition: border-color 0.18s, box-shadow 0.18s;
+}
+.polishly-input::placeholder {
+  color: #52525b;
 }
 .polishly-input:focus {
-  border-color: #6c5ce7;
+  border-color: rgba(108, 92, 231, 0.5);
+  box-shadow: 0 0 0 2px rgba(108, 92, 231, 0.12);
 }
 .polishly-btn-send {
   width: auto;
-  padding: 7px 14px;
+  padding: 8px 16px;
   margin-bottom: 0;
   text-align: center;
 }
 
 /* ── Result modal ── */
 #polishly-result {
-  width: 340px;
+  width: 360px;
 }
 .polishly-result-text {
-  background: #111;
-  border: 1px solid #2a2a2a;
-  border-radius: 6px;
-  padding: 10px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 12px;
   margin-bottom: 10px;
-  max-height: 250px;
+  max-height: 260px;
   overflow-y: auto;
   white-space: pre-wrap;
   word-wrap: break-word;
   font-size: 13px;
-  line-height: 1.5;
+  line-height: 1.6;
 }
+.polishly-result-text::-webkit-scrollbar {
+  width: 4px;
+}
+.polishly-result-text::-webkit-scrollbar-track {
+  background: transparent;
+}
+.polishly-result-text::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
 .polishly-error {
-  color: #e74c3c;
+  color: #f87171;
 }
 
 .polishly-actions {
   display: flex;
-  gap: 5px;
+  gap: 6px;
 }
 .polishly-actions .polishly-btn {
   flex: 1;
@@ -170,18 +242,15 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 12px 0;
-  color: #888;
+  padding: 14px 0;
+  color: #a1a1aa;
   font-size: 13px;
 }
 .polishly-spinner {
   width: 18px;
   height: 18px;
-  border: 2px solid #333;
-  border-top-color: #6c5ce7;
+  border: 2px solid rgba(255, 255, 255, 0.08);
+  border-top-color: #7c6cf0;
   border-radius: 50%;
   animation: polishly-spin 0.6s linear infinite;
-}
-@keyframes polishly-spin {
-  to { transform: rotate(360deg); }
 }
