@@ -1,7 +1,49 @@
 (() => {
+  let trigger = null;
   let popup = null;
   let resultModal = null;
   let selectedText = '';
+  let savedRange = null;
+  let savedActiveElement = null;
+  let savedSelectionStart = null;
+  let savedSelectionEnd = null;
+
+  // ── Create small trigger icon ──
+  function createTrigger(x, y) {
+    removeTrigger();
+    removePopup();
+
+    trigger = document.createElement('div');
+    trigger.id = 'polishly-trigger';
+    trigger.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 113 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>`;
+    trigger.title = 'Polishly';
+
+    document.body.appendChild(trigger);
+
+    // Position near selection
+    trigger.style.position = 'fixed';
+    trigger.style.zIndex = '2147483647';
+    trigger.style.left = (x + 6) + 'px';
+    trigger.style.top = (y - 36) + 'px';
+
+    // Keep within viewport
+    const vw = window.innerWidth;
+    if (x + 6 + 32 > vw) trigger.style.left = (vw - 40) + 'px';
+    if (y - 36 < 4) trigger.style.top = (y + 12) + 'px';
+
+    trigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const rect = trigger.getBoundingClientRect();
+      removeTrigger();
+      createPopup(rect.left, rect.bottom);
+    });
+
+    trigger.addEventListener('mousedown', (e) => e.stopPropagation());
+  }
+
+  function removeTrigger() {
+    if (trigger) { trigger.remove(); trigger = null; }
+  }
 
   // ── Create floating popup ──
   function createPopup(x, y) {
@@ -160,26 +202,70 @@
     el.style.transform = 'translate(-50%, -50%)';
   }
 
-  function replaceSelectedText(newText) {
+  function saveSelection() {
     const active = document.activeElement;
-
-    // Handle input / textarea
     if (active && (active.tagName === 'TEXTAREA' || (active.tagName === 'INPUT' && active.type === 'text'))) {
-      const start = active.selectionStart;
-      const end = active.selectionEnd;
-      active.value = active.value.slice(0, start) + newText + active.value.slice(end);
-      active.selectionStart = active.selectionEnd = start + newText.length;
-      active.dispatchEvent(new Event('input', { bubbles: true }));
+      savedActiveElement = active;
+      savedSelectionStart = active.selectionStart;
+      savedSelectionEnd = active.selectionEnd;
+      savedRange = null;
+    } else {
+      const sel = window.getSelection();
+      if (sel.rangeCount > 0) {
+        savedRange = sel.getRangeAt(0).cloneRange();
+      }
+      savedActiveElement = active;
+      savedSelectionStart = null;
+      savedSelectionEnd = null;
+    }
+  }
+
+  function replaceSelectedText(newText) {
+    // Handle input / textarea using execCommand for framework compatibility
+    if (savedActiveElement && (savedActiveElement.tagName === 'TEXTAREA' || (savedActiveElement.tagName === 'INPUT' && savedActiveElement.type === 'text'))) {
+      savedActiveElement.focus();
+      savedActiveElement.selectionStart = savedSelectionStart;
+      savedActiveElement.selectionEnd = savedSelectionEnd;
+
+      // execCommand('insertText') triggers proper input events that React/Vue/Angular detect
+      if (!document.execCommand('insertText', false, newText)) {
+        // Fallback: set value directly and fire InputEvent
+        const start = savedSelectionStart;
+        const end = savedSelectionEnd;
+        const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+          Object.getPrototypeOf(savedActiveElement), 'value'
+        )?.set;
+        if (nativeInputValueSetter) {
+          nativeInputValueSetter.call(savedActiveElement,
+            savedActiveElement.value.slice(0, start) + newText + savedActiveElement.value.slice(end)
+          );
+        } else {
+          savedActiveElement.value = savedActiveElement.value.slice(0, start) + newText + savedActiveElement.value.slice(end);
+        }
+        savedActiveElement.selectionStart = savedActiveElement.selectionEnd = start + newText.length;
+        savedActiveElement.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: newText }));
+        savedActiveElement.dispatchEvent(new Event('change', { bubbles: true }));
+      }
       return;
     }
 
-    // Handle contenteditable / regular page text
-    const sel = window.getSelection();
-    if (sel.rangeCount > 0) {
-      const range = sel.getRangeAt(0);
-      range.deleteContents();
-      range.insertNode(document.createTextNode(newText));
+    // Handle contenteditable using execCommand for undo support and framework compatibility
+    if (savedRange) {
+      const sel = window.getSelection();
       sel.removeAllRanges();
+      sel.addRange(savedRange);
+
+      if (savedActiveElement && savedActiveElement.focus) {
+        savedActiveElement.focus();
+      }
+
+      // execCommand preserves undo history and works with contenteditable frameworks
+      if (!document.execCommand('insertText', false, newText)) {
+        // Fallback: manual range replacement
+        savedRange.deleteContents();
+        savedRange.insertNode(document.createTextNode(newText));
+        sel.removeAllRanges();
+      }
     }
   }
 
@@ -198,16 +284,34 @@
     return div.innerHTML;
   }
 
+  function isEditableElement(el) {
+    if (!el) return false;
+    if (el.tagName === 'TEXTAREA') return true;
+    if (el.tagName === 'INPUT' && el.type === 'text') return true;
+    if (el.isContentEditable) return true;
+    return false;
+  }
+
   // ── Selection listener ──
   document.addEventListener('mouseup', (e) => {
     // Ignore clicks inside our own UI
-    if (e.target.closest('#polishly-popup') || e.target.closest('#polishly-result')) return;
+    if (e.target.closest('#polishly-popup') || e.target.closest('#polishly-result') || e.target.closest('#polishly-trigger')) return;
+
+    // Only activate in text inputs, textareas, and contenteditable elements
+    const active = document.activeElement;
+    if (!isEditableElement(active) && !e.target.closest('[contenteditable="true"]')) {
+      removeTrigger();
+      removePopup();
+      return;
+    }
 
     const sel = window.getSelection().toString().trim();
     if (sel.length > 0) {
       selectedText = sel;
-      createPopup(e.clientX, e.clientY);
+      saveSelection();
+      createTrigger(e.clientX, e.clientY);
     } else {
+      removeTrigger();
       removePopup();
     }
   });
@@ -215,6 +319,7 @@
   // Close popup on Escape
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
+      removeTrigger();
       removePopup();
       removeResult();
     }
@@ -222,6 +327,7 @@
 
   // Close popup when clicking outside
   document.addEventListener('mousedown', (e) => {
+    if (trigger && !e.target.closest('#polishly-trigger')) removeTrigger();
     if (popup && !e.target.closest('#polishly-popup')) removePopup();
     if (resultModal && !e.target.closest('#polishly-result')) removeResult();
   });

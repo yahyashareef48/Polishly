@@ -1,3 +1,23 @@
+/* ── Polishly — Trigger Icon ── */
+#polishly-trigger {
+  width: 28px;
+  height: 28px;
+  background: #6c5ce7;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #fff;
+  box-shadow: 0 2px 10px rgba(108, 92, 231, 0.4);
+  transition: transform 0.15s, box-shadow 0.15s;
+  user-select: none;
+}
+#polishly-trigger:hover {
+  transform: scale(1.15);
+  box-shadow: 0 4px 16px rgba(108, 92, 231, 0.6);
+}
+
 /* ── Polishly — Floating Popup ── */
 #polishly-popup,
 #polishly-result {
