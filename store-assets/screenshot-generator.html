@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Polishly — Store Screenshots</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0a0a0a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #e4e4e8; }
+
+  h2 { color: #a78bfa; text-align: center; margin: 40px 0 16px; font-size: 14px; letter-spacing: 2px; text-transform: uppercase; }
+  .instructions { text-align: center; color: #71717a; font-size: 13px; margin-bottom: 24px; }
+
+  /* ── Each screenshot frame ── */
+  .frame {
+    width: 1280px;
+    height: 800px;
+    margin: 0 auto 60px;
+    border: 1px solid #222;
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+    background: linear-gradient(145deg, #0f0f14, #16161d);
+  }
+
+  /* ── Fake browser chrome ── */
+  .browser-bar {
+    height: 44px;
+    background: #18181b;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 8px;
+  }
+  .dot { width: 12px; height: 12px; border-radius: 50%; }
+  .dot-red { background: #f87171; }
+  .dot-yellow { background: #fbbf24; }
+  .dot-green { background: #34d399; }
+  .url-bar {
+    flex: 1;
+    margin-left: 12px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 6px;
+    padding: 6px 14px;
+    font-size: 12px;
+    color: #71717a;
+  }
+
+  /* ── Page content area ── */
+  .page-content {
+    padding: 60px 120px;
+    height: calc(800px - 44px);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  /* ── Fake textarea ── */
+  .fake-textarea {
+    width: 100%;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+    padding: 20px 24px;
+    font-size: 16px;
+    line-height: 1.7;
+    color: #d4d4d8;
+    position: relative;
+  }
+  .fake-textarea .label {
+    font-size: 13px;
+    color: #71717a;
+    margin-bottom: 10px;
+  }
+  .selected {
+    background: rgba(108, 92, 231, 0.25);
+    border-radius: 3px;
+    padding: 1px 0;
+  }
+
+  /* ── Polishly trigger ── */
+  .p-trigger {
+    width: 30px;
+    height: 30px;
+    background: linear-gradient(135deg, #7c6cf0, #5a4bd1);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 12px rgba(108, 92, 231, 0.4);
+    position: absolute;
+  }
+
+  /* ── Polishly popup ── */
+  .p-popup {
+    background: rgba(20, 20, 24, 0.82);
+    backdrop-filter: blur(20px) saturate(1.4);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    padding: 12px;
+    width: 270px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255,255,255,0.04) inset;
+    position: absolute;
+  }
+  .p-popup .p-header {
+    font-weight: 700;
+    font-size: 11px;
+    color: #a78bfa;
+    margin-bottom: 10px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+  }
+  .p-popup .p-btn {
+    display: block;
+    width: 100%;
+    padding: 8px 12px;
+    margin-bottom: 6px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 8px;
+    color: #d4d4d8;
+    font-size: 12.5px;
+    text-align: left;
+  }
+  .p-popup .p-btn.active {
+    background: rgba(108, 92, 231, 0.12);
+    border-color: rgba(108, 92, 231, 0.4);
+    color: #f0f0f4;
+  }
+  .p-popup .tone-row {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 6px;
+  }
+  .p-popup .tone-row .p-btn { flex: 1; text-align: center; margin-bottom: 0; }
+  .p-popup .tone-row select {
+    flex: 1;
+    padding: 8px 8px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 8px;
+    color: #d4d4d8;
+    font-size: 12.5px;
+  }
+  .p-popup .custom-row {
+    display: flex;
+    gap: 6px;
+  }
+  .p-popup .custom-row input {
+    flex: 1;
+    padding: 8px 10px;
+    background: rgba(0,0,0,0.25);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 8px;
+    color: #e4e4e8;
+    font-size: 12.5px;
+  }
+  .p-popup .custom-row .p-btn { width: auto; padding: 8px 16px; margin-bottom: 0; text-align: center; }
+
+  /* ── Result modal ── */
+  .p-result {
+    background: rgba(20, 20, 24, 0.82);
+    backdrop-filter: blur(20px) saturate(1.4);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    padding: 12px;
+    width: 360px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255,255,255,0.04) inset;
+    position: absolute;
+  }
+  .p-result .p-header {
+    font-weight: 700;
+    font-size: 11px;
+    color: #a78bfa;
+    margin-bottom: 10px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+  }
+  .p-result .result-text {
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 10px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #d4d4d8;
+  }
+  .p-result .actions {
+    display: flex;
+    gap: 6px;
+  }
+  .p-result .actions .p-btn {
+    flex: 1;
+    text-align: center;
+    padding: 8px 12px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 8px;
+    color: #d4d4d8;
+    font-size: 12.5px;
+  }
+  .p-result .actions .p-btn-primary {
+    background: linear-gradient(135deg, #7c6cf0, #5a4bd1);
+    border-color: transparent;
+    color: #fff;
+    font-weight: 500;
+  }
+  .p-result .actions .p-btn-close {
+    background: transparent;
+    border-color: rgba(255,255,255,0.06);
+    color: #71717a;
+  }
+
+  /* ── Hero / Promo banner ── */
+  .promo-frame {
+    width: 1280px;
+    height: 800px;
+    margin: 0 auto 60px;
+    border: 1px solid #222;
+    border-radius: 12px;
+    overflow: hidden;
+    background: linear-gradient(145deg, #0c0c14, #12101f);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    position: relative;
+  }
+  .promo-frame::before {
+    content: '';
+    position: absolute;
+    width: 500px;
+    height: 500px;
+    background: radial-gradient(circle, rgba(108,92,231,0.15) 0%, transparent 70%);
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+  .promo-icon {
+    width: 88px;
+    height: 88px;
+    margin-bottom: 28px;
+    position: relative;
+    z-index: 1;
+  }
+  .promo-title {
+    font-size: 52px;
+    font-weight: 700;
+    color: #f4f4f5;
+    margin-bottom: 12px;
+    letter-spacing: -1px;
+    position: relative;
+    z-index: 1;
+  }
+  .promo-sub {
+    font-size: 20px;
+    color: #a1a1aa;
+    max-width: 520px;
+    line-height: 1.5;
+    position: relative;
+    z-index: 1;
+  }
+  .promo-pills {
+    display: flex;
+    gap: 10px;
+    margin-top: 32px;
+    position: relative;
+    z-index: 1;
+  }
+  .promo-pill {
+    padding: 8px 18px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 20px;
+    font-size: 14px;
+    color: #d4d4d8;
+  }
+  .promo-pill.accent {
+    background: rgba(108,92,231,0.15);
+    border-color: rgba(108,92,231,0.3);
+    color: #c4b5fd;
+  }
+</style>
+</head>
+<body>
+
+<h2>Screenshot 1 — Trigger Icon</h2>
+<p class="instructions">Open this page in Chrome at 100% zoom, then use a screenshot tool to capture each 1280x800 frame.</p>
+
+<div class="frame">
+  <div class="browser-bar">
+    <div class="dot dot-red"></div>
+    <div class="dot dot-yellow"></div>
+    <div class="dot dot-green"></div>
+    <div class="url-bar">mail.google.com/compose</div>
+  </div>
+  <div class="page-content">
+    <div class="fake-textarea" style="min-height: 200px;">
+      <div class="label">Compose email</div>
+      Hi Team,<br><br>
+      I wanted to follow up on the <span class="selected">project deliverbles that was due last wendsday, their are a few items that needs to be adressed before we can move forwrd</span>. Let me know your thoughts.<br><br>
+      Thanks,<br>Sarah
+      <div class="p-trigger" style="top: 48px; right: -46px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 113 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h2>Screenshot 2 — Popup Menu</h2>
+
+<div class="frame">
+  <div class="browser-bar">
+    <div class="dot dot-red"></div>
+    <div class="dot dot-yellow"></div>
+    <div class="dot dot-green"></div>
+    <div class="url-bar">app.slack.com/client</div>
+  </div>
+  <div class="page-content">
+    <div class="fake-textarea" style="min-height: 160px;">
+      <div class="label">Message #general</div>
+      Hey everyone, <span class="selected">i think we should probly schedule a meeting to talk about the new feature thats been requested by the client</span>
+
+      <div class="p-popup" style="top: 24px; right: 40px;">
+        <div class="p-header">Polishly</div>
+        <div class="p-btn active">Fix Spelling & Grammar</div>
+        <div class="tone-row">
+          <div class="p-btn">Change Tone</div>
+          <select><option>Formal</option></select>
+        </div>
+        <div class="custom-row">
+          <input placeholder="Custom instruction..." />
+          <div class="p-btn">Go</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h2>Screenshot 3 — Result Modal</h2>
+
+<div class="frame">
+  <div class="browser-bar">
+    <div class="dot dot-red"></div>
+    <div class="dot dot-yellow"></div>
+    <div class="dot dot-green"></div>
+    <div class="url-bar">notion.so/meeting-notes</div>
+  </div>
+  <div class="page-content" style="position: relative;">
+    <div class="fake-textarea" style="min-height: 180px; opacity: 0.4;">
+      <div class="label">Meeting Notes</div>
+      The team discussed the upcoming <span class="selected">product lanch timline and agred that we need to prioritize the core fetures before adding any additional functionalty</span>.
+    </div>
+
+    <div class="p-result" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">
+      <div class="p-header">Polishly</div>
+      <div class="result-text">The team discussed the upcoming product launch timeline and agreed that we need to prioritize the core features before adding any additional functionality.</div>
+      <div class="actions">
+        <div class="p-btn">Copy</div>
+        <div class="p-btn p-btn-primary">Replace</div>
+        <div class="p-btn p-btn-close">Close</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h2>Promo Image (1280x800)</h2>
+
+<div class="promo-frame">
+  <svg class="promo-icon" viewBox="0 0 128 128">
+    <defs>
+      <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" style="stop-color:#7c6cf0"/>
+        <stop offset="100%" style="stop-color:#5a4bd1"/>
+      </linearGradient>
+      <linearGradient id="shine" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" style="stop-color:#ffffff;stop-opacity:0.25"/>
+        <stop offset="100%" style="stop-color:#ffffff;stop-opacity:0"/>
+      </linearGradient>
+    </defs>
+    <rect x="4" y="4" width="120" height="120" rx="28" fill="url(#bg)"/>
+    <rect x="4" y="4" width="120" height="120" rx="28" fill="url(#shine)"/>
+    <path d="M64 24 L72 52 L100 60 L72 68 L64 96 L56 68 L28 60 L56 52 Z" fill="#ffffff"/>
+    <path d="M96 20 L99 30 L109 33 L99 36 L96 46 L93 36 L83 33 L93 30 Z" fill="#ffffff" opacity="0.7"/>
+    <path d="M34 82 L37 90 L45 93 L37 96 L34 104 L31 96 L23 93 L31 90 Z" fill="#ffffff" opacity="0.5"/>
+  </svg>
+  <div class="promo-title">Polishly</div>
+  <div class="promo-sub">AI-powered text polishing, right where you type. Fix grammar, change tone, or rewrite with custom instructions.</div>
+  <div class="promo-pills">
+    <span class="promo-pill accent">Fix Grammar</span>
+    <span class="promo-pill">Change Tone</span>
+    <span class="promo-pill accent">Custom Instructions</span>
+    <span class="promo-pill">Gemini AI</span>
+  </div>
+</div>
+
+</body>
+</html>
