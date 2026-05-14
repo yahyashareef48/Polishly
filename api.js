@@ -1,10 +1,25 @@
 const Polishly = {
   async getApiKey() {
-    return new Promise((resolve) => {
-      chrome.storage.local.get('geminiApiKey', (data) => {
-        resolve(data.geminiApiKey || null);
+    try {
+      return await new Promise((resolve, reject) => {
+        if (!chrome.runtime?.id) {
+          reject(new Error('EXTENSION_RELOADED'));
+          return;
+        }
+        chrome.storage.local.get('geminiApiKey', (data) => {
+          if (chrome.runtime.lastError) {
+            reject(new Error('EXTENSION_RELOADED'));
+            return;
+          }
+          resolve(data.geminiApiKey || null);
+        });
       });
-    });
+    } catch (e) {
+      if (e.message === 'EXTENSION_RELOADED') {
+        throw new Error('Extension was updated. Please refresh this page (F5) and try again.');
+      }
+      throw e;
+    }
   },
 
   buildPrompt(action, text, tone, customInstruction) {
