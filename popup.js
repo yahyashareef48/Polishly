@@ -1,19 +1,23 @@
 const apiKeyInput = document.getElementById('apiKeyInput');
+const modelInput = document.getElementById('modelInput');
 const saveBtn = document.getElementById('saveBtn');
 const toggleBtn = document.getElementById('toggleBtn');
 const saveStatus = document.getElementById('saveStatus');
 const statusBadge = document.getElementById('statusBadge');
 const statusText = document.getElementById('statusText');
 
-// Load existing key and update status
-chrome.storage.local.get('geminiApiKey', (data) => {
+// Load existing settings
+chrome.storage.local.get(['geminiApiKey', 'geminiModel'], (data) => {
   if (data.geminiApiKey) {
     apiKeyInput.value = data.geminiApiKey;
     setConnected(true);
   }
+  if (data.geminiModel) {
+    modelInput.value = data.geminiModel;
+  }
 });
 
-// Save key
+// Save key + model
 saveBtn.addEventListener('click', () => {
   const key = apiKeyInput.value.trim();
   if (!key) {
@@ -21,8 +25,12 @@ saveBtn.addEventListener('click', () => {
     saveStatus.className = 'save-status error';
     return;
   }
-  chrome.storage.local.set({ geminiApiKey: key }, () => {
-    saveStatus.textContent = 'Key saved!';
+  const model = modelInput.value.trim();
+  chrome.storage.local.set({
+    geminiApiKey: key,
+    geminiModel: model || ''
+  }, () => {
+    saveStatus.textContent = 'Saved!';
     saveStatus.className = 'save-status success';
     setConnected(true);
     setTimeout(() => { saveStatus.textContent = ''; }, 2000);

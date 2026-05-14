@@ -1,17 +1,20 @@
 const Polishly = {
-  async getApiKey() {
+  async getSettings() {
     try {
       return await new Promise((resolve, reject) => {
         if (!chrome.runtime?.id) {
           reject(new Error('EXTENSION_RELOADED'));
           return;
         }
-        chrome.storage.local.get('geminiApiKey', (data) => {
+        chrome.storage.local.get(['geminiApiKey', 'geminiModel'], (data) => {
           if (chrome.runtime.lastError) {
             reject(new Error('EXTENSION_RELOADED'));
             return;
           }
-          resolve(data.geminiApiKey || null);
+          resolve({
+            apiKey: data.geminiApiKey || null,
+            model: data.geminiModel || 'gemini-2.5-flash-lite'
+          });
         });
       });
     } catch (e) {
@@ -36,12 +39,12 @@ const Polishly = {
   },
 
   async callGemini(prompt) {
-    const apiKey = await this.getApiKey();
+    const { apiKey, model } = await this.getSettings();
     if (!apiKey) {
-      throw new Error('No API key set. Go to extension settings to add your Gemini key.');
+      throw new Error('No API key set. Click the Polishly extension icon to add your Gemini key.');
     }
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
     const res = await fetch(url, {
       method: 'POST',
