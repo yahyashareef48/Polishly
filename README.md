@@ -23,7 +23,7 @@
 - **Change Tone** — Rewrite in Formal, Casual, Concise, or Friendly tone
 - **Custom Instructions** — Type any instruction: simplify, expand, translate, rewrite for a specific audience, and more
 - **Non-intrusive** — A small icon appears only when you select text in editable fields. Click it to open the menu
-- **Works everywhere** — Gmail, Notion, Slack, Twitter/X, LinkedIn, Google Docs, and any website with text inputs
+- **Works everywhere** — Works in any website or web app with text inputs, textareas, or rich text editors
 - **Framework-safe** — Smart text replacement that works correctly with React, Vue, Angular, and contenteditable editors
 - **Privacy-first** — Your API key stays in your browser. No data is collected or sent to any server except Google's Gemini API
 - **Glassmorphism UI** — Frosted glass design with smooth animations
