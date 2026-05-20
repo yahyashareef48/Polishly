@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Polishly Settings</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    html, body {
+      width: 400px;
+      height: 460px;
+      background: #13131a;
+      overflow-y: auto;
+      padding: 24px;
+    }
+
+    .page-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 28px;
+    }
+
+    .page-header .logo {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #7c6cf0, #5a4bd1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      flex-shrink: 0;
+    }
+
+    .page-header h1 {
+      font-size: 18px;
+      font-weight: 600;
+      color: #f0f0f0;
+    }
+
+    .page-header p {
+      font-size: 12px;
+      color: rgba(255,255,255,0.4);
+      margin-top: 1px;
+    }
+
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: 500;
+      color: rgba(255,255,255,0.55);
+      margin-bottom: 6px;
+      letter-spacing: 0.04em;
+    }
+
+    .field { margin-bottom: 18px; }
+
+    .input-wrap {
+      position: relative;
+      display: flex;
+    }
+
+    .input-wrap input {
+      flex: 1;
+      padding: 9px 38px 9px 11px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.05);
+      color: #f0f0f0;
+      font-size: 13px;
+      outline: none;
+      font-family: monospace;
+      width: 100%;
+    }
+
+    .input-wrap input:focus {
+      border-color: rgba(124,108,240,0.5);
+    }
+
+    .toggle-visibility {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: rgba(255,255,255,0.35);
+      padding: 2px;
+      display: flex;
+    }
+
+    .toggle-visibility:hover { color: rgba(255,255,255,0.7); }
+
+    select.field-select {
+      width: 100%;
+      padding: 9px 11px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.05);
+      color: #f0f0f0;
+      font-size: 13px;
+      outline: none;
+      cursor: pointer;
+      appearance: none;
+    }
+
+    select.field-select option { background: #1e1e22; }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      margin-top: 6px;
+      padding: 3px 8px;
+      border-radius: 4px;
+    }
+
+    .status.connected {
+      color: #4ade80;
+      background: rgba(74,222,128,0.1);
+    }
+
+    .status.missing {
+      color: rgba(255,255,255,0.35);
+      background: rgba(255,255,255,0.05);
+    }
+
+    .status .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    .save-btn {
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      border: none;
+      background: linear-gradient(135deg, #7c6cf0, #5a4bd1);
+      color: white;
+      font-size: 13.5px;
+      font-weight: 500;
+      cursor: pointer;
+      margin-top: 6px;
+      transition: opacity 0.12s ease;
+    }
+
+    .save-btn:hover { opacity: 0.9; }
+    .save-btn:active { opacity: 0.8; }
+
+    .hint {
+      font-size: 11.5px;
+      color: rgba(255,255,255,0.35);
+      margin-top: 20px;
+      line-height: 1.55;
+    }
+
+    .hint a {
+      color: #7c6cf0;
+      text-decoration: none;
+    }
+
+    .hint a:hover { text-decoration: underline; }
+
+    .hotkey-badge {
+      display: inline-block;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 5px;
+      padding: 2px 7px;
+      font-size: 11px;
+      font-family: monospace;
+      color: rgba(255,255,255,0.6);
+      margin-top: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="page-header">
+    <div class="logo">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2.5"
+           stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 20h9"/>
+        <path d="M16.5 3.5a2.121 2.121 0 113 3L7 19l-4 1 1-4L16.5 3.5z"/>
+      </svg>
+    </div>
+    <div>
+      <h1>Polishly</h1>
+      <p>AI text polishing for Windows</p>
+    </div>
+  </div>
+
+  <div class="field">
+    <label>GEMINI API KEY</label>
+    <div class="input-wrap">
+      <input type="password" id="api-key" placeholder="AIza…" autocomplete="off" spellcheck="false" />
+      <button class="toggle-visibility" id="toggle-key" title="Show / hide key">
+        <svg id="eye-icon" width="15" height="15" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+      </button>
+    </div>
+    <div class="status missing" id="status">
+      <span class="dot"></span>
+      <span id="status-text">No key saved</span>
+    </div>
+  </div>
+
+  <div class="field">
+    <label>MODEL</label>
+    <select class="field-select" id="model-select">
+      <option value="gemini-2.5-flash-lite">gemini-2.5-flash-lite (fastest)</option>
+      <option value="gemini-2.5-flash">gemini-2.5-flash</option>
+      <option value="gemini-2.5-pro">gemini-2.5-pro (best quality)</option>
+    </select>
+  </div>
+
+  <button class="save-btn" id="save-btn">Save Settings</button>
+
+  <div class="hint">
+    Get a free API key at
+    <a href="#" id="ai-studio-link">aistudio.google.com</a>.
+    The key is stored locally on your machine and never sent anywhere except Google's API.
+  </div>
+
+  <div class="hotkey-badge">Hotkey: Win + Shift + P</div>
+
+  <script src="settings.js"></script>
+</body>
+</html>

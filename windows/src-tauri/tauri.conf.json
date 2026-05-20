@@ -1,0 +1,56 @@
+{
+  "productName": "Polishly",
+  "version": "1.0.0",
+  "identifier": "com.polishly.app",
+  "build": {
+    "frontendDist": "../src"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "icon",
+        "url": "icon-window.html",
+        "width": 36,
+        "height": 36,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "visible": false,
+        "skipTaskbar": true,
+        "resizable": false,
+        "shadow": false
+      },
+      {
+        "label": "popup",
+        "url": "popup.html",
+        "width": 290,
+        "height": 244,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "visible": false,
+        "skipTaskbar": true,
+        "resizable": false,
+        "shadow": false
+      },
+      {
+        "label": "settings",
+        "url": "settings.html",
+        "width": 400,
+        "height": 460,
+        "title": "Polishly Settings",
+        "decorations": true,
+        "visible": false,
+        "skipTaskbar": false,
+        "resizable": false,
+        "center": true
+      }
+    ]
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis", "msi"],
+    "icon": ["../assets/icon.ico", "../assets/icon.png"]
+  }
+}
