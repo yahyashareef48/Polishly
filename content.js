@@ -316,6 +316,38 @@
     }
   });
 
+  // ── Keyboard selection listener ──
+  document.addEventListener('keyup', (e) => {
+    const active = document.activeElement;
+    if (!isEditableElement(active)) return;
+
+    const sel = window.getSelection().toString().trim();
+    if (sel.length > 0) {
+      selectedText = sel;
+      saveSelection();
+
+      let x, y;
+      if (active.tagName === 'TEXTAREA' || active.tagName === 'INPUT') {
+        const rect = active.getBoundingClientRect();
+        x = rect.right;
+        y = rect.top + rect.height / 2;
+      } else {
+        const selection = window.getSelection();
+        if (selection.rangeCount > 0) {
+          const rect = selection.getRangeAt(0).getBoundingClientRect();
+          x = rect.right;
+          y = rect.top;
+        } else {
+          return;
+        }
+      }
+      createTrigger(x, y);
+    } else {
+      removeTrigger();
+      removePopup();
+    }
+  });
+
   // Close popup on Escape
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
