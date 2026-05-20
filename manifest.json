@@ -3,7 +3,7 @@
   "name": "Polishly",
   "description": "Select text, polish it with AI — fix grammar, change tone, or give custom instructions.",
   "version": "1.0.0",
-  "permissions": ["storage", "activeTab"],
+  "permissions": ["storage"],
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
