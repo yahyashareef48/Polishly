@@ -18,7 +18,6 @@ use tauri_plugin_updater::UpdaterExt;
 #[derive(Default)]
 struct AppState {
     selected_text: Mutex<String>,
-    // Cursor position captured at hotkey press time
     cursor_pos: Mutex<(i32, i32)>,
 }
 
@@ -50,6 +49,60 @@ fn config_path() -> std::path::PathBuf {
     path.push("Polishly");
     path.push("config.json");
     path
+}
+
+// ── Native dialog helpers ─────────────────────────────────────────────────────
+
+#[cfg(windows)]
+fn native_dialog(title: &str, message: &str, style: u32) -> i32 {
+    use std::ffi::OsStr;
+    use std::iter::once;
+    use std::os::windows::ffi::OsStrExt;
+    let title_w: Vec<u16> = OsStr::new(title).encode_wide().chain(once(0)).collect();
+    let msg_w: Vec<u16> = OsStr::new(message).encode_wide().chain(once(0)).collect();
+    unsafe { winapi::um::winuser::MessageBoxW(std::ptr::null_mut(), msg_w.as_ptr(), title_w.as_ptr(), style) }
+}
+
+#[cfg(not(windows))]
+fn native_dialog(_title: &str, _message: &str, _style: u32) -> i32 { 1 }
+
+fn info_dialog(message: &str) {
+    // MB_OK | MB_ICONINFORMATION
+    native_dialog("Polishly", message, 0x00000040);
+}
+
+// ── Update logic ──────────────────────────────────────────────────────────────
+
+async fn check_and_install_update(app: AppHandle, silent: bool) {
+    let updater = match app.updater_builder().build() {
+        Ok(u) => u,
+        Err(_) => return,
+    };
+
+    match updater.check().await {
+        Ok(Some(update)) => {
+            let version = update.version.clone();
+            // On silent startup check just install; on manual check confirm first
+            if !silent {
+                info_dialog(&format!(
+                    "Update v{version} is available.\nDownloading and installing now — Polishly will restart."
+                ));
+            }
+            if update.download_and_install(|_, _| {}, || {}).await.is_ok() {
+                app.restart();
+            }
+        }
+        Ok(None) => {
+            if !silent {
+                info_dialog("You're up to date! No new version available.");
+            }
+        }
+        Err(_) => {
+            if !silent {
+                info_dialog("Could not check for updates. Make sure you're connected to the internet.");
+            }
+        }
+    }
 }
 
 // ── Tauri commands ────────────────────────────────────────────────────────────
@@ -85,7 +138,6 @@ fn get_selected_text(state: State<AppState>) -> String {
     state.selected_text.lock().unwrap().clone()
 }
 
-/// Called when the floating icon is clicked — hides icon, shows action popup.
 #[tauri::command]
 fn show_popup(app: AppHandle, state: State<AppState>) {
     if let Some(icon_win) = app.get_webview_window("icon") {
@@ -93,14 +145,12 @@ fn show_popup(app: AppHandle, state: State<AppState>) {
     }
     let (cx, cy) = *state.cursor_pos.lock().unwrap();
     if let Some(popup) = app.get_webview_window("popup") {
-        // Position popup just below where the icon was
         let _ = popup.set_position(tauri::PhysicalPosition::new(cx + 10, cy - 40));
         let _ = popup.show();
         let _ = popup.set_focus();
     }
 }
 
-/// Replaces the selected text in the originating app via clipboard + Ctrl+V.
 #[tauri::command]
 fn replace_text(text: String) -> Result<(), String> {
     let mut clipboard = Clipboard::new().map_err(|e| e.to_string())?;
@@ -135,16 +185,11 @@ fn open_settings(app: AppHandle) {
 
 // ── Hotkey logic ──────────────────────────────────────────────────────────────
 
-/// Simulates Ctrl+C, waits for clipboard to update, returns the captured text.
 fn capture_selection() -> Option<String> {
     let mut clipboard = Clipboard::new().ok()?;
-
-    // Save existing clipboard so we can restore it after
     let prev_text = clipboard.get_text().ok();
 
-    // Clear first so we can detect if Ctrl+C actually copied anything
     let _ = clipboard.set_text(String::new());
-
     std::thread::sleep(std::time::Duration::from_millis(30));
 
     let mut enigo = Enigo::new(&EnigoSettings::default()).ok()?;
@@ -159,7 +204,6 @@ fn capture_selection() -> Option<String> {
         if trimmed.is_empty() { None } else { Some(trimmed) }
     });
 
-    // Restore previous clipboard contents
     if let Some(prev) = prev_text {
         let _ = clipboard.set_text(prev);
     }
@@ -177,9 +221,7 @@ fn get_cursor_pos() -> (i32, i32) {
 }
 
 #[cfg(not(windows))]
-fn get_cursor_pos() -> (i32, i32) {
-    (200, 200)
-}
+fn get_cursor_pos() -> (i32, i32) { (200, 200) }
 
 // ── Entry point ───────────────────────────────────────────────────────────────
 
@@ -190,9 +232,10 @@ fn main() {
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .setup(|app| {
             // ── System tray ──
-            let open_item = MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
-            let quit_item = MenuItem::with_id(app, "quit", "Quit Polishly", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&open_item, &quit_item])?;
+            let settings_item  = MenuItem::with_id(app, "settings",      "Settings",           true, None::<&str>)?;
+            let update_item    = MenuItem::with_id(app, "check_update",  "Check for Updates",  true, None::<&str>)?;
+            let quit_item      = MenuItem::with_id(app, "quit",          "Quit Polishly",      true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&settings_item, &update_item, &quit_item])?;
 
             TrayIconBuilder::new()
                 .icon(app.default_window_icon().unwrap().clone())
@@ -200,54 +243,45 @@ fn main() {
                 .menu(&menu)
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "settings" => open_settings(app.clone()),
-                    "quit" => app.exit(0),
+                    "quit"     => app.exit(0),
+                    "check_update" => {
+                        let handle = app.clone();
+                        tauri::async_runtime::spawn(async move {
+                            check_and_install_update(handle, false).await;
+                        });
+                    }
                     _ => {}
                 })
                 .build(app)?;
 
-            // ── Auto-updater: check silently on startup ──
+            // ── Silent update check on startup ──
             let update_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
-                if let Ok(updater) = update_handle.updater_builder().build() {
-                    if let Ok(Some(update)) = updater.check().await {
-                        let _ = update.download_and_install(|_, _| {}, || {}).await;
-                        update_handle.restart();
-                    }
-                }
+                check_and_install_update(update_handle, true).await;
             });
 
             // ── Global hotkey: Win+Shift+P ──
             let app_handle = app.handle().clone();
-            let shortcut = Shortcut::new(
-                Some(Modifiers::SUPER | Modifiers::SHIFT),
-                Code::KeyP,
-            );
+            let shortcut = Shortcut::new(Some(Modifiers::SUPER | Modifiers::SHIFT), Code::KeyP);
 
             app.global_shortcut().on_shortcut(shortcut, move |_app, _shortcut, event| {
-                if event.state != ShortcutState::Pressed {
-                    return;
-                }
+                if event.state != ShortcutState::Pressed { return; }
 
-                // Capture cursor position before any window appears
                 let cursor = get_cursor_pos();
-
                 let handle = app_handle.clone();
                 std::thread::spawn(move || {
                     let Some(text) = capture_selection() else { return };
 
-                    // Store in app state
                     let state = handle.state::<AppState>();
                     *state.selected_text.lock().unwrap() = text;
                     *state.cursor_pos.lock().unwrap() = cursor;
 
-                    // Show the floating pen icon near the cursor
                     if let Some(icon_win) = handle.get_webview_window("icon") {
                         let _ = icon_win.set_position(tauri::PhysicalPosition::new(
                             cursor.0 + 10,
                             cursor.1 - 40,
                         ));
                         let _ = icon_win.show();
-                        // Don't call set_focus() — we don't want to steal focus from the user's app
                     }
                 });
             })?;
