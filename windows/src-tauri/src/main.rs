@@ -11,7 +11,6 @@ use tauri::{
     AppHandle, Manager, State,
 };
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
-use tauri_plugin_updater::UpdaterExt;
 
 // ── App state ────────────────────────────────────────────────────────────────
 
@@ -54,55 +53,20 @@ fn config_path() -> std::path::PathBuf {
 // ── Native dialog helpers ─────────────────────────────────────────────────────
 
 #[cfg(windows)]
-fn native_dialog(title: &str, message: &str, style: u32) -> i32 {
+fn native_dialog(title: &str, message: &str, style: u32) {
     use std::ffi::OsStr;
     use std::iter::once;
     use std::os::windows::ffi::OsStrExt;
     let title_w: Vec<u16> = OsStr::new(title).encode_wide().chain(once(0)).collect();
     let msg_w: Vec<u16> = OsStr::new(message).encode_wide().chain(once(0)).collect();
-    unsafe { winapi::um::winuser::MessageBoxW(std::ptr::null_mut(), msg_w.as_ptr(), title_w.as_ptr(), style) }
+    unsafe { winapi::um::winuser::MessageBoxW(std::ptr::null_mut(), msg_w.as_ptr(), title_w.as_ptr(), style); }
 }
 
 #[cfg(not(windows))]
-fn native_dialog(_title: &str, _message: &str, _style: u32) -> i32 { 1 }
+fn native_dialog(_title: &str, _message: &str, _style: u32) {}
 
 fn info_dialog(message: &str) {
-    // MB_OK | MB_ICONINFORMATION
-    native_dialog("Polishly", message, 0x00000040);
-}
-
-// ── Update logic ──────────────────────────────────────────────────────────────
-
-async fn check_and_install_update(app: AppHandle, silent: bool) {
-    let updater = match app.updater_builder().build() {
-        Ok(u) => u,
-        Err(_) => return,
-    };
-
-    match updater.check().await {
-        Ok(Some(update)) => {
-            let version = update.version.clone();
-            // On silent startup check just install; on manual check confirm first
-            if !silent {
-                info_dialog(&format!(
-                    "Update v{version} is available.\nDownloading and installing now — Polishly will restart."
-                ));
-            }
-            if update.download_and_install(|_, _| {}, || {}).await.is_ok() {
-                app.restart();
-            }
-        }
-        Ok(None) => {
-            if !silent {
-                info_dialog("You're up to date! No new version available.");
-            }
-        }
-        Err(_) => {
-            if !silent {
-                info_dialog("Could not check for updates. Make sure you're connected to the internet.");
-            }
-        }
-    }
+    native_dialog("Polishly", message, 0x00000040); // MB_OK | MB_ICONINFORMATION
 }
 
 // ── Tauri commands ────────────────────────────────────────────────────────────
@@ -155,14 +119,11 @@ fn show_popup(app: AppHandle, state: State<AppState>) {
 fn replace_text(text: String) -> Result<(), String> {
     let mut clipboard = Clipboard::new().map_err(|e| e.to_string())?;
     clipboard.set_text(text).map_err(|e| e.to_string())?;
-
     std::thread::sleep(std::time::Duration::from_millis(80));
-
     let mut enigo = Enigo::new(&EnigoSettings::default()).map_err(|e| e.to_string())?;
     enigo.key(Key::Control, Direction::Press).map_err(|e| e.to_string())?;
     enigo.key(Key::Unicode('v'), Direction::Click).map_err(|e| e.to_string())?;
     enigo.key(Key::Control, Direction::Release).map_err(|e| e.to_string())?;
-
     Ok(())
 }
 
@@ -188,7 +149,6 @@ fn open_settings(app: AppHandle) {
 fn capture_selection() -> Option<String> {
     let mut clipboard = Clipboard::new().ok()?;
     let prev_text = clipboard.get_text().ok();
-
     let _ = clipboard.set_text(String::new());
     std::thread::sleep(std::time::Duration::from_millis(30));
 
@@ -196,7 +156,6 @@ fn capture_selection() -> Option<String> {
     let _ = enigo.key(Key::Control, Direction::Press);
     let _ = enigo.key(Key::Unicode('c'), Direction::Click);
     let _ = enigo.key(Key::Control, Direction::Release);
-
     std::thread::sleep(std::time::Duration::from_millis(150));
 
     let captured = clipboard.get_text().ok().and_then(|t| {
@@ -207,7 +166,6 @@ fn capture_selection() -> Option<String> {
     if let Some(prev) = prev_text {
         let _ = clipboard.set_text(prev);
     }
-
     captured
 }
 
@@ -228,37 +186,28 @@ fn get_cursor_pos() -> (i32, i32) { (200, 200) }
 fn main() {
     tauri::Builder::default()
         .manage(AppState::default())
-        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .setup(|app| {
             // ── System tray ──
-            let settings_item  = MenuItem::with_id(app, "settings",      "Settings",           true, None::<&str>)?;
-            let update_item    = MenuItem::with_id(app, "check_update",  "Check for Updates",  true, None::<&str>)?;
-            let quit_item      = MenuItem::with_id(app, "quit",          "Quit Polishly",      true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&settings_item, &update_item, &quit_item])?;
+            let settings_item = MenuItem::with_id(app, "settings",     "Settings",          true, None::<&str>)?;
+            let quit_item     = MenuItem::with_id(app, "quit",         "Quit Polishly",     true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&settings_item, &quit_item])?;
 
-            TrayIconBuilder::new()
-                .icon(app.default_window_icon().unwrap().clone())
+            let mut tray = TrayIconBuilder::new()
                 .tooltip("Polishly — Win+Shift+P to polish selected text")
                 .menu(&menu)
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "settings" => open_settings(app.clone()),
                     "quit"     => app.exit(0),
-                    "check_update" => {
-                        let handle = app.clone();
-                        tauri::async_runtime::spawn(async move {
-                            check_and_install_update(handle, false).await;
-                        });
-                    }
                     _ => {}
-                })
-                .build(app)?;
+                });
 
-            // ── Silent update check on startup ──
-            let update_handle = app.handle().clone();
-            tauri::async_runtime::spawn(async move {
-                check_and_install_update(update_handle, true).await;
-            });
+            // Only attach icon if one is bundled — avoids a panic if assets are missing
+            if let Some(icon) = app.default_window_icon() {
+                tray = tray.icon(icon.clone());
+            }
+
+            tray.build(app)?;
 
             // ── Global hotkey: Win+Shift+P ──
             let app_handle = app.handle().clone();
@@ -266,20 +215,16 @@ fn main() {
 
             app.global_shortcut().on_shortcut(shortcut, move |_app, _shortcut, event| {
                 if event.state != ShortcutState::Pressed { return; }
-
                 let cursor = get_cursor_pos();
                 let handle = app_handle.clone();
                 std::thread::spawn(move || {
                     let Some(text) = capture_selection() else { return };
-
                     let state = handle.state::<AppState>();
                     *state.selected_text.lock().unwrap() = text;
                     *state.cursor_pos.lock().unwrap() = cursor;
-
                     if let Some(icon_win) = handle.get_webview_window("icon") {
                         let _ = icon_win.set_position(tauri::PhysicalPosition::new(
-                            cursor.0 + 10,
-                            cursor.1 - 40,
+                            cursor.0 + 10, cursor.1 - 40,
                         ));
                         let _ = icon_win.show();
                     }
