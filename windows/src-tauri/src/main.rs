@@ -11,6 +11,7 @@ use tauri::{
     AppHandle, Manager, State,
 };
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
+use tauri_plugin_updater::UpdaterExt;
 
 // ── App state ────────────────────────────────────────────────────────────────
 
@@ -185,6 +186,7 @@ fn get_cursor_pos() -> (i32, i32) {
 fn main() {
     tauri::Builder::default()
         .manage(AppState::default())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .setup(|app| {
             // ── System tray ──
@@ -202,6 +204,17 @@ fn main() {
                     _ => {}
                 })
                 .build(app)?;
+
+            // ── Auto-updater: check silently on startup ──
+            let update_handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                if let Ok(updater) = update_handle.updater_builder().build() {
+                    if let Ok(Some(update)) = updater.check().await {
+                        let _ = update.download_and_install(|_, _| {}, || {}).await;
+                        update_handle.restart();
+                    }
+                }
+            });
 
             // ── Global hotkey: Win+Shift+P ──
             let app_handle = app.handle().clone();
