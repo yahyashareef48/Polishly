@@ -30,10 +30,16 @@ struct PolishlyConfig {
     gemini_api_key: String,
     #[serde(rename = "geminiModel", default = "default_model")]
     gemini_model: String,
+    #[serde(rename = "hotkey", default = "default_hotkey")]
+    hotkey: String,
 }
 
 fn default_model() -> String {
     "gemini-2.5-flash-lite".to_string()
+}
+
+fn default_hotkey() -> String {
+    "Ctrl+Alt+P".to_string()
 }
 
 impl Default for PolishlyConfig {
@@ -41,6 +47,7 @@ impl Default for PolishlyConfig {
         Self {
             gemini_api_key: String::new(),
             gemini_model: default_model(),
+            hotkey: default_hotkey(),
         }
     }
 }
@@ -98,13 +105,40 @@ fn get_settings() -> PolishlyConfig {
 }
 
 #[tauri::command]
-fn save_settings(api_key: String, model: String) -> Result<(), String> {
-    let config = PolishlyConfig { gemini_api_key: api_key, gemini_model: model };
+fn save_settings(api_key: String, model: String, hotkey: String) -> Result<(), String> {
+    let config = PolishlyConfig { gemini_api_key: api_key, gemini_model: model, hotkey };
     let path = config_path();
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
     std::fs::write(&path, serde_json::to_string_pretty(&config).map_err(|e| e.to_string())?)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn reregister_hotkey(app: AppHandle, hotkey: String) -> Result<(), String> {
+    // Unregister all existing shortcuts then register the new one
+    app.global_shortcut().unregister_all().map_err(|e| e.to_string())?;
+    let shortcut = parse_shortcut(&hotkey).ok_or_else(|| format!("Invalid hotkey: {hotkey}"))?;
+    let app_handle = app.clone();
+    app.global_shortcut()
+        .on_shortcut(shortcut, move |_app, _shortcut, event| {
+            if event.state != ShortcutState::Pressed { return; }
+            let cursor = get_cursor_pos();
+            let handle = app_handle.clone();
+            std::thread::spawn(move || {
+                let Some(text) = capture_selection() else { return };
+                let state = handle.state::<AppState>();
+                *state.selected_text.lock().unwrap() = text;
+                *state.cursor_pos.lock().unwrap() = cursor;
+                if let Some(icon_win) = handle.get_webview_window("icon") {
+                    let _ = icon_win.set_position(tauri::PhysicalPosition::new(
+                        cursor.0 + 10, cursor.1 - 40,
+                    ));
+                    let _ = icon_win.show();
+                }
+            });
+        })
         .map_err(|e| e.to_string())
 }
 
@@ -152,6 +186,26 @@ fn open_settings(app: AppHandle) {
 }
 
 // ── Hotkey logic ──────────────────────────────────────────────────────────────
+
+fn parse_shortcut(hotkey: &str) -> Option<Shortcut> {
+    let parts: Vec<&str> = hotkey.split('+').collect();
+    let key_str = parts.last()?;
+    let code = match *key_str {
+        "P" => Code::KeyP,
+        _ => return None,
+    };
+    let mut mods = Modifiers::empty();
+    for part in &parts[..parts.len() - 1] {
+        match *part {
+            "Super" => mods |= Modifiers::SUPER,
+            "Ctrl"  => mods |= Modifiers::CONTROL,
+            "Alt"   => mods |= Modifiers::ALT,
+            "Shift" => mods |= Modifiers::SHIFT,
+            _ => return None,
+        }
+    }
+    Some(Shortcut::new(Some(mods), code))
+}
 
 fn capture_selection() -> Option<String> {
     let mut cb = Clipboard::new().ok()?;
@@ -236,7 +290,7 @@ fn main() {
 
             TrayIconBuilder::new()
                 .icon(icon)
-                .tooltip("Polishly — Win+Shift+P to polish selected text")
+                .tooltip("Polishly — press your configured hotkey to polish selected text")
                 .menu(&menu)
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "settings"     => open_settings(app.clone()),
@@ -257,31 +311,36 @@ fn main() {
                 run_update_check(update_handle, true).await;
             });
 
-            // ── Global hotkey: Win+Shift+P ──
+            // ── Global hotkey (from saved config, default Ctrl+Alt+P) ──
+            let saved_hotkey = get_settings().hotkey;
             let app_handle = app.handle().clone();
-            let shortcut = Shortcut::new(Some(Modifiers::SUPER | Modifiers::SHIFT), Code::KeyP);
 
-            if let Err(e) = app.global_shortcut().on_shortcut(shortcut, move |_app, _shortcut, event| {
-                if event.state != ShortcutState::Pressed { return; }
-                let cursor = get_cursor_pos();
-                let handle = app_handle.clone();
-                std::thread::spawn(move || {
-                    let Some(text) = capture_selection() else { return };
-                    let state = handle.state::<AppState>();
-                    *state.selected_text.lock().unwrap() = text;
-                    *state.cursor_pos.lock().unwrap() = cursor;
-                    if let Some(icon_win) = handle.get_webview_window("icon") {
-                        let _ = icon_win.set_position(tauri::PhysicalPosition::new(
-                            cursor.0 + 10, cursor.1 - 40,
-                        ));
-                        let _ = icon_win.show();
-                    }
-                });
-            }) {
-                // Non-fatal: hotkey may already be registered by another app
+            let registered = parse_shortcut(&saved_hotkey).and_then(|sc| {
+                let h = app_handle.clone();
+                app.global_shortcut().on_shortcut(sc, move |_app, _shortcut, event| {
+                    if event.state != ShortcutState::Pressed { return; }
+                    let cursor = get_cursor_pos();
+                    let handle = h.clone();
+                    std::thread::spawn(move || {
+                        let Some(text) = capture_selection() else { return };
+                        let state = handle.state::<AppState>();
+                        *state.selected_text.lock().unwrap() = text;
+                        *state.cursor_pos.lock().unwrap() = cursor;
+                        if let Some(icon_win) = handle.get_webview_window("icon") {
+                            let _ = icon_win.set_position(tauri::PhysicalPosition::new(
+                                cursor.0 + 10, cursor.1 - 40,
+                            ));
+                            let _ = icon_win.show();
+                        }
+                    });
+                }).ok()
+            });
+
+            if registered.is_none() {
                 info_dialog(&format!(
-                    "Could not register Win+Shift+P hotkey:\n{e}\n\nAnother application may be using it."
+                    "Could not register hotkey \"{saved_hotkey}\".\nIt may be in use by another app.\n\nOpening Settings so you can choose a different hotkey."
                 ));
+                open_settings(app.handle().clone());
             }
 
             Ok(())
@@ -294,6 +353,7 @@ fn main() {
             show_popup,
             hide_all_windows,
             open_settings,
+            reregister_hotkey,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Polishly");
