@@ -6,6 +6,7 @@ use arboard::Clipboard;
 use enigo::{Direction, Enigo, Key, Keyboard, Settings as EnigoSettings};
 use serde::{Deserialize, Serialize};
 use tauri::{
+    image::Image,
     menu::{Menu, MenuItem},
     tray::TrayIconBuilder,
     AppHandle, Manager, State,
@@ -50,6 +51,19 @@ fn config_path() -> std::path::PathBuf {
     path
 }
 
+// ── Crash logging ─────────────────────────────────────────────────────────────
+
+fn setup_crash_log() {
+    std::panic::set_hook(Box::new(|info| {
+        let log_path = dirs::config_dir()
+            .unwrap_or_default()
+            .join("Polishly")
+            .join("crash.log");
+        let _ = std::fs::create_dir_all(log_path.parent().unwrap());
+        let _ = std::fs::write(&log_path, format!("Polishly crash:\n{info}\n"));
+    }));
+}
+
 // ── Native dialog helpers ─────────────────────────────────────────────────────
 
 #[cfg(windows)]
@@ -58,12 +72,12 @@ fn native_dialog(title: &str, message: &str, style: u32) {
     use std::iter::once;
     use std::os::windows::ffi::OsStrExt;
     let title_w: Vec<u16> = OsStr::new(title).encode_wide().chain(once(0)).collect();
-    let msg_w: Vec<u16> = OsStr::new(message).encode_wide().chain(once(0)).collect();
+    let msg_w: Vec<u16>   = OsStr::new(message).encode_wide().chain(once(0)).collect();
     unsafe { winapi::um::winuser::MessageBoxW(std::ptr::null_mut(), msg_w.as_ptr(), title_w.as_ptr(), style); }
 }
 
 #[cfg(not(windows))]
-fn native_dialog(_title: &str, _message: &str, _style: u32) {}
+fn native_dialog(_: &str, _: &str, _: u32) {}
 
 fn info_dialog(message: &str) {
     native_dialog("Polishly", message, 0x00000040); // MB_OK | MB_ICONINFORMATION
@@ -84,17 +98,13 @@ fn get_settings() -> PolishlyConfig {
 
 #[tauri::command]
 fn save_settings(api_key: String, model: String) -> Result<(), String> {
-    let config = PolishlyConfig {
-        gemini_api_key: api_key,
-        gemini_model: model,
-    };
+    let config = PolishlyConfig { gemini_api_key: api_key, gemini_model: model };
     let path = config_path();
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
-    let json = serde_json::to_string_pretty(&config).map_err(|e| e.to_string())?;
-    std::fs::write(&path, json).map_err(|e| e.to_string())?;
-    Ok(())
+    std::fs::write(&path, serde_json::to_string_pretty(&config).map_err(|e| e.to_string())?)
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -104,9 +114,7 @@ fn get_selected_text(state: State<AppState>) -> String {
 
 #[tauri::command]
 fn show_popup(app: AppHandle, state: State<AppState>) {
-    if let Some(icon_win) = app.get_webview_window("icon") {
-        let _ = icon_win.hide();
-    }
+    if let Some(w) = app.get_webview_window("icon") { let _ = w.hide(); }
     let (cx, cy) = *state.cursor_pos.lock().unwrap();
     if let Some(popup) = app.get_webview_window("popup") {
         let _ = popup.set_position(tauri::PhysicalPosition::new(cx + 10, cy - 40));
@@ -117,8 +125,8 @@ fn show_popup(app: AppHandle, state: State<AppState>) {
 
 #[tauri::command]
 fn replace_text(text: String) -> Result<(), String> {
-    let mut clipboard = Clipboard::new().map_err(|e| e.to_string())?;
-    clipboard.set_text(text).map_err(|e| e.to_string())?;
+    let mut cb = Clipboard::new().map_err(|e| e.to_string())?;
+    cb.set_text(text).map_err(|e| e.to_string())?;
     std::thread::sleep(std::time::Duration::from_millis(80));
     let mut enigo = Enigo::new(&EnigoSettings::default()).map_err(|e| e.to_string())?;
     enigo.key(Key::Control, Direction::Press).map_err(|e| e.to_string())?;
@@ -130,9 +138,7 @@ fn replace_text(text: String) -> Result<(), String> {
 #[tauri::command]
 fn hide_all_windows(app: AppHandle) {
     for label in ["icon", "popup"] {
-        if let Some(w) = app.get_webview_window(label) {
-            let _ = w.hide();
-        }
+        if let Some(w) = app.get_webview_window(label) { let _ = w.hide(); }
     }
 }
 
@@ -147,9 +153,9 @@ fn open_settings(app: AppHandle) {
 // ── Hotkey logic ──────────────────────────────────────────────────────────────
 
 fn capture_selection() -> Option<String> {
-    let mut clipboard = Clipboard::new().ok()?;
-    let prev_text = clipboard.get_text().ok();
-    let _ = clipboard.set_text(String::new());
+    let mut cb = Clipboard::new().ok()?;
+    let prev = cb.get_text().ok();
+    let _ = cb.set_text(String::new());
     std::thread::sleep(std::time::Duration::from_millis(30));
 
     let mut enigo = Enigo::new(&EnigoSettings::default()).ok()?;
@@ -158,14 +164,11 @@ fn capture_selection() -> Option<String> {
     let _ = enigo.key(Key::Control, Direction::Release);
     std::thread::sleep(std::time::Duration::from_millis(150));
 
-    let captured = clipboard.get_text().ok().and_then(|t| {
-        let trimmed = t.trim().to_string();
-        if trimmed.is_empty() { None } else { Some(trimmed) }
+    let captured = cb.get_text().ok().and_then(|t| {
+        let t = t.trim().to_string();
+        if t.is_empty() { None } else { Some(t) }
     });
-
-    if let Some(prev) = prev_text {
-        let _ = clipboard.set_text(prev);
-    }
+    if let Some(p) = prev { let _ = cb.set_text(p); }
     captured
 }
 
@@ -184,36 +187,37 @@ fn get_cursor_pos() -> (i32, i32) { (200, 200) }
 // ── Entry point ───────────────────────────────────────────────────────────────
 
 fn main() {
+    setup_crash_log();
+
     tauri::Builder::default()
         .manage(AppState::default())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .setup(|app| {
             // ── System tray ──
-            let settings_item = MenuItem::with_id(app, "settings",     "Settings",          true, None::<&str>)?;
-            let quit_item     = MenuItem::with_id(app, "quit",         "Quit Polishly",     true, None::<&str>)?;
+            let settings_item = MenuItem::with_id(app, "settings", "Settings",      true, None::<&str>)?;
+            let quit_item     = MenuItem::with_id(app, "quit",     "Quit Polishly", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&settings_item, &quit_item])?;
 
-            let mut tray = TrayIconBuilder::new()
+            // Embed icon at compile time so it's always available
+            let icon = Image::from_bytes(include_bytes!("../../assets/icon.png"))
+                .expect("bundled icon must be valid PNG");
+
+            TrayIconBuilder::new()
+                .icon(icon)
                 .tooltip("Polishly — Win+Shift+P to polish selected text")
                 .menu(&menu)
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "settings" => open_settings(app.clone()),
                     "quit"     => app.exit(0),
                     _ => {}
-                });
-
-            // Only attach icon if one is bundled — avoids a panic if assets are missing
-            if let Some(icon) = app.default_window_icon() {
-                tray = tray.icon(icon.clone());
-            }
-
-            tray.build(app)?;
+                })
+                .build(app)?;
 
             // ── Global hotkey: Win+Shift+P ──
             let app_handle = app.handle().clone();
             let shortcut = Shortcut::new(Some(Modifiers::SUPER | Modifiers::SHIFT), Code::KeyP);
 
-            app.global_shortcut().on_shortcut(shortcut, move |_app, _shortcut, event| {
+            if let Err(e) = app.global_shortcut().on_shortcut(shortcut, move |_app, _shortcut, event| {
                 if event.state != ShortcutState::Pressed { return; }
                 let cursor = get_cursor_pos();
                 let handle = app_handle.clone();
@@ -229,7 +233,12 @@ fn main() {
                         let _ = icon_win.show();
                     }
                 });
-            })?;
+            }) {
+                // Non-fatal: hotkey may already be registered by another app
+                info_dialog(&format!(
+                    "Could not register Win+Shift+P hotkey:\n{e}\n\nAnother application may be using it."
+                ));
+            }
 
             Ok(())
         })
