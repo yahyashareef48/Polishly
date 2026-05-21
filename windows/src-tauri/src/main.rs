@@ -12,6 +12,7 @@ use tauri::{
     AppHandle, Manager, State,
 };
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
+use tauri_plugin_updater::UpdaterExt;
 
 // ── App state ────────────────────────────────────────────────────────────────
 
@@ -184,6 +185,35 @@ fn get_cursor_pos() -> (i32, i32) {
 #[cfg(not(windows))]
 fn get_cursor_pos() -> (i32, i32) { (200, 200) }
 
+// ── Auto-updater ─────────────────────────────────────────────────────────────
+
+async fn run_update_check(app: AppHandle, silent: bool) {
+    let Ok(updater) = app.updater_builder().build() else { return };
+    match updater.check().await {
+        Ok(Some(update)) => {
+            if !silent {
+                info_dialog(&format!(
+                    "Update v{} is available. Downloading and installing — Polishly will restart.",
+                    update.version
+                ));
+            }
+            if update.download_and_install(|_, _| {}, || {}).await.is_ok() {
+                app.restart();
+            }
+        }
+        Ok(None) => {
+            if !silent {
+                info_dialog("You're up to date! No new version available.");
+            }
+        }
+        Err(_) => {
+            if !silent {
+                info_dialog("Could not check for updates. Check your internet connection.");
+            }
+        }
+    }
+}
+
 // ── Entry point ───────────────────────────────────────────────────────────────
 
 fn main() {
@@ -191,12 +221,14 @@ fn main() {
 
     tauri::Builder::default()
         .manage(AppState::default())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .setup(|app| {
             // ── System tray ──
-            let settings_item = MenuItem::with_id(app, "settings", "Settings",      true, None::<&str>)?;
-            let quit_item     = MenuItem::with_id(app, "quit",     "Quit Polishly", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&settings_item, &quit_item])?;
+            let settings_item = MenuItem::with_id(app, "settings",      "Settings",           true, None::<&str>)?;
+            let update_item   = MenuItem::with_id(app, "check_update", "Check for Updates",  true, None::<&str>)?;
+            let quit_item     = MenuItem::with_id(app, "quit",         "Quit Polishly",      true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&settings_item, &update_item, &quit_item])?;
 
             // Embed icon at compile time so it's always available
             let icon = Image::from_bytes(include_bytes!("../../assets/icon.png"))
@@ -207,11 +239,23 @@ fn main() {
                 .tooltip("Polishly — Win+Shift+P to polish selected text")
                 .menu(&menu)
                 .on_menu_event(|app, event| match event.id.as_ref() {
-                    "settings" => open_settings(app.clone()),
-                    "quit"     => app.exit(0),
+                    "settings"     => open_settings(app.clone()),
+                    "quit"         => app.exit(0),
+                    "check_update" => {
+                        let handle = app.clone();
+                        tauri::async_runtime::spawn(async move {
+                            run_update_check(handle, false).await;
+                        });
+                    }
                     _ => {}
                 })
                 .build(app)?;
+
+            // ── Silent update check on startup ──
+            let update_handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                run_update_check(update_handle, true).await;
+            });
 
             // ── Global hotkey: Win+Shift+P ──
             let app_handle = app.handle().clone();
