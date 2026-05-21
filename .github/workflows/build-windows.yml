@@ -26,6 +26,12 @@ jobs:
         with:
           workspaces: ./windows/src-tauri -> target
 
+      - name: Generate icon files from browser icons
+        shell: pwsh
+        run: |
+          Copy-Item browser/icons/icon128.png windows/assets/icon.png
+          magick browser/icons/icon128.png -resize 256x256 windows/assets/icon.ico
+
       - name: Install frontend dependencies
         run: npm install
         working-directory: windows
