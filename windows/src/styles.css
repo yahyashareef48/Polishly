@@ -1,0 +1,233 @@
+/* Shared styles for Polishly Windows app — mirrors the browser extension aesthetic */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  background: transparent;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  font-size: 13px;
+  color: #f0f0f0;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* ── Glassmorphism card ───────────────────────────────────────────── */
+
+.card {
+  background: rgba(20, 20, 24, 0.88);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.45),
+    0 2px 8px rgba(0, 0, 0, 0.3);
+  padding: 12px;
+  animation: fade-up 0.18s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Header ──────────────────────────────────────────────────────── */
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.4);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.header svg {
+  color: #7c6cf0;
+}
+
+/* ── Buttons ─────────────────────────────────────────────────────── */
+
+.btn {
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.06);
+  color: #f0f0f0;
+  font-size: 12.5px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s ease, border-color 0.12s ease;
+  margin-bottom: 6px;
+}
+
+.btn:hover {
+  background: rgba(255, 255, 255, 0.11);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.btn:last-child { margin-bottom: 0; }
+
+.btn-primary {
+  background: linear-gradient(135deg, #7c6cf0, #5a4bd1);
+  border-color: transparent;
+  text-align: center;
+  font-weight: 500;
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, #8d7ef5, #6b5ce0);
+  border-color: transparent;
+}
+
+.btn-close {
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.45);
+  text-align: center;
+}
+
+.btn-close:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* ── Tone row ────────────────────────────────────────────────────── */
+
+.tone-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.tone-row .btn {
+  margin-bottom: 0;
+  flex: 1;
+}
+
+select {
+  flex: 1;
+  padding: 7px 8px;
+  border-radius: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.06);
+  color: #f0f0f0;
+  font-size: 12.5px;
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+}
+
+select option {
+  background: #1e1e22;
+  color: #f0f0f0;
+}
+
+/* ── Custom instruction row ──────────────────────────────────────── */
+
+.custom-row {
+  display: flex;
+  gap: 6px;
+}
+
+input[type="text"] {
+  flex: 1;
+  padding: 7px 10px;
+  border-radius: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.06);
+  color: #f0f0f0;
+  font-size: 12.5px;
+  outline: none;
+  transition: border-color 0.12s ease;
+}
+
+input[type="text"]:focus {
+  border-color: rgba(124, 108, 240, 0.5);
+}
+
+input[type="text"]::placeholder {
+  color: rgba(255, 255, 255, 0.28);
+}
+
+.btn-send {
+  width: auto;
+  padding: 7px 14px;
+  text-align: center;
+  margin-bottom: 0;
+}
+
+/* ── Result text ─────────────────────────────────────────────────── */
+
+.result-text {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 7px;
+  padding: 9px 10px;
+  font-size: 13px;
+  line-height: 1.5;
+  max-height: 160px;
+  overflow-y: auto;
+  margin-bottom: 10px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  user-select: text;
+}
+
+.result-text.error {
+  color: #ff6b6b;
+  font-size: 12px;
+}
+
+.actions {
+  display: flex;
+  gap: 6px;
+}
+
+.actions .btn {
+  margin-bottom: 0;
+  text-align: center;
+  flex: 1;
+}
+
+/* ── Loading ─────────────────────────────────────────────────────── */
+
+.loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 4px;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 12.5px;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.12);
+  border-top-color: #7c6cf0;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Scrollbar ───────────────────────────────────────────────────── */
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 2px;
+}
