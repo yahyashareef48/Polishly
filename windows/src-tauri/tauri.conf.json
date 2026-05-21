@@ -55,10 +55,8 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "REPLACE_WITH_YOUR_PUBLIC_KEY",
-      "endpoints": [
-        "https://github.com/yahyashareef48/Polishly/releases/latest/download/latest.json"
-      ]
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEI4MDc1NzQwQzY0MUZDMDcKUldRSC9FSEdRRmNIdUxlczc5U25KY0pSdUV4bDJMTldMSTI4dDVkT3JiQ0FreEpvc1JhR29qRXQK",
+      "endpoints": ["https://github.com/yahyashareef48/Polishly/releases/latest/download/latest.json"]
     }
   }
 }
