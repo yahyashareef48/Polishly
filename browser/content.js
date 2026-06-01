@@ -8,34 +8,42 @@
   let savedSelectionStart = null;
   let savedSelectionEnd = null;
 
-  // ── Create small trigger icon ──
   function createTrigger(x, y) {
     removeTrigger();
     removePopup();
 
     trigger = document.createElement('div');
     trigger.id = 'polishly-trigger';
-    trigger.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 113 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>`;
+    trigger.innerHTML = `
+      <button type="button" class="polishly-trigger-icon" title="Polishly">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 113 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+      </button>
+      <button type="button" class="polishly-instant-btn">Instant Fix</button>
+    `;
     trigger.title = 'Polishly';
 
     document.body.appendChild(trigger);
 
-    // Position near selection
     trigger.style.position = 'fixed';
     trigger.style.zIndex = '2147483647';
     trigger.style.left = (x + 6) + 'px';
     trigger.style.top = (y - 36) + 'px';
 
-    // Keep within viewport
+    const rect = trigger.getBoundingClientRect();
     const vw = window.innerWidth;
-    if (x + 6 + 32 > vw) trigger.style.left = (vw - 40) + 'px';
+    if (x + 6 + rect.width > vw - 8) trigger.style.left = Math.max(8, vw - rect.width - 8) + 'px';
     if (y - 36 < 4) trigger.style.top = (y + 12) + 'px';
 
-    trigger.addEventListener('click', (e) => {
+    trigger.querySelector('.polishly-trigger-icon').addEventListener('click', (e) => {
       e.stopPropagation();
       const rect = trigger.getBoundingClientRect();
       removeTrigger();
       createPopup(rect.left, rect.bottom);
+    });
+
+    trigger.querySelector('.polishly-instant-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      handleInstantFix(e.currentTarget);
     });
 
     trigger.addEventListener('mousedown', (e) => e.stopPropagation());
@@ -138,6 +146,56 @@
       showResult(result);
     } catch (err) {
       showResult(err.message, true);
+    }
+  }
+
+  async function handleInstantFix(btn) {
+    if (!selectedText) return;
+
+    btn.disabled = true;
+    btn.textContent = 'Fixing...';
+    trigger?.classList.add('polishly-trigger-busy');
+
+    try {
+      const result = await requestInstantFix(selectedText);
+      replaceSelectedText(result);
+      removeTrigger();
+      removePopup();
+    } catch (err) {
+      removeTrigger();
+      showResult(err.message, true);
+    }
+  }
+
+  async function requestInstantFix(text) {
+    try {
+      return await new Promise((resolve, reject) => {
+        if (!chrome.runtime?.id) {
+          reject(new Error('EXTENSION_RELOADED'));
+          return;
+        }
+
+        chrome.runtime.sendMessage({ type: 'POLISHLY_INSTANT_FIX', text }, (response) => {
+          if (chrome.runtime.lastError) {
+            reject(new Error(chrome.runtime.lastError.message || 'EXTENSION_RELOADED'));
+            return;
+          }
+          if (!response) {
+            reject(new Error('Instant Fix did not return a response.'));
+            return;
+          }
+          if (response.error) {
+            reject(new Error(response.error));
+            return;
+          }
+          resolve(response.result || text);
+        });
+      });
+    } catch (e) {
+      if (e.message === 'EXTENSION_RELOADED') {
+        throw new Error('Extension was updated. Please refresh this page (F5) and try again.');
+      }
+      throw e;
     }
   }
 
@@ -292,6 +350,13 @@
     return false;
   }
 
+  function getSelectedText(active) {
+    if (active && (active.tagName === 'TEXTAREA' || (active.tagName === 'INPUT' && active.type === 'text'))) {
+      return active.value.slice(active.selectionStart, active.selectionEnd).trim();
+    }
+    return window.getSelection().toString().trim();
+  }
+
   // ── Selection listener ──
   document.addEventListener('mouseup', (e) => {
     // Ignore clicks inside our own UI
@@ -305,7 +370,7 @@
       return;
     }
 
-    const sel = window.getSelection().toString().trim();
+    const sel = getSelectedText(active);
     if (sel.length > 0) {
       selectedText = sel;
       saveSelection();
@@ -321,7 +386,7 @@
     const active = document.activeElement;
     if (!isEditableElement(active)) return;
 
-    const sel = window.getSelection().toString().trim();
+    const sel = getSelectedText(active);
     if (sel.length > 0) {
       selectedText = sel;
       saveSelection();

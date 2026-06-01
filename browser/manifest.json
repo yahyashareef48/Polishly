@@ -4,6 +4,13 @@
   "description": "Select text, polish it with AI — fix grammar, change tone, or give custom instructions.",
   "version": "1.0.0",
   "permissions": ["storage"],
+  "background": {
+    "service_worker": "harper-service.js",
+    "type": "module"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
+  },
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
