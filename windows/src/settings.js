@@ -44,13 +44,18 @@
     const hotkey = hotkeySelect.value;
     try {
       await invoke('save_settings', { apiKey, model, hotkey });
-      await invoke('reregister_hotkey', { hotkey });
       setStatus(!!apiKey);
       saveBtn.textContent = 'Saved!';
       setTimeout(() => { saveBtn.textContent = 'Save Settings'; }, 1500);
     } catch (err) {
-      saveBtn.textContent = 'Error — hotkey may be in use';
-      setTimeout(() => { saveBtn.textContent = 'Save Settings'; }, 2500);
+      saveBtn.textContent = 'Error saving';
+      setTimeout(() => { saveBtn.textContent = 'Save Settings'; }, 2000);
+      return;
+    }
+    try {
+      await invoke('reregister_hotkey', { hotkey });
+    } catch (_) {
+      // hotkey conflict — app will surface its own dialog
     }
   });
 
